@@ -1,0 +1,11 @@
+{
+  "name": "soliditygame_rps",
+  "version": "1.0.0",
+  "description": "solidity 를 활용한 게임 구현",
+  "main": "RPC.sol",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
