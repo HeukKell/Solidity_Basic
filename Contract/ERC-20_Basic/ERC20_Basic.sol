@@ -33,8 +33,65 @@ interface ERC20Interface{
     event Approval(address indexed owner, address indexed spender, uint256 oldAmount, uint256 amount);
 }
 
+library SafeMath{
+    function multiply(uint256 a, uint256 b) internal pure returns(uint256){
+        uint256 c = a*b;
+        assert(a == 0 || c/a ==b);
+        return c;
+    }
 
-contract SimpleToken is ERC20Interface{
+    function division(uint256 a, uint256 b) internal pure returns (uint256){
+        uint256 c = a/b;
+        return c;
+    }
+
+    function sub(uint256 a, uint256 b) internal pure returns (uint256){
+        assert(b <= a);
+        return a-b;
+    }
+
+    function add(uint256 a, uint256 b) internal pure returns (uint256){
+        uint256 c =a+b;
+        assert(c >= a);
+        return c;
+    }
+}
+
+/* 추상 컨트랙트. 관리자 전용 함수 */
+abstract contract OwnerHelper{
+
+    address private _owner;
+    
+    constructor (){
+        _owner = msg.sender;
+    }
+    
+    event OwnershipTransferred(address indexed preOwner, address indexed nextOwner);
+
+
+    modifier onlyOwner{
+        require(msg.sender == _owner, "OwnerHelper: caller is not owner");
+        _;
+    }
+
+    function owner() public view virtual returns (address){
+        return _owner;
+    }
+
+    function transferOwnership(address newOwner) onlyOwner public{
+        require(newOwner != _owner);
+        require(newOwner != address(0x0));
+        address preOwner = _owner;
+        _owner = newOwner;
+        emit OwnershipTransferred(preOwner,newOwner);
+    }
+}
+
+
+contract SimpleToken is ERC20Interface, OwnerHelper{
+
+    using SafeMath for uint256;
+
     mapping (address => uint256) private _balances;     // (토큰 소유자:소유한 토큰액) 기록
     mapping (address => mapping (address => uint256)) public _allowances; // (토큰 양도받은자 : 토큰 주인 : 양도받은 토큰액 ) 기록
 
@@ -42,6 +99,10 @@ contract SimpleToken is ERC20Interface{
     string public _name;            // 토큰 이름
     string public _symbol;          // 토큰 단위
     uint8 public _decimals;
+    
+    // 토큰 락 관련
+    bool public _tokenLock;                                 // 토큰의 전체 락에 대한 처리
+    mapping (address => bool) public _personalTokenLock;    // 토큰의 개인 락에 대한 처리
 
     constructor (string memory getName, string memory getSymbol){
         _name = getName;    // 토큰 이름
@@ -72,6 +133,31 @@ contract SimpleToken is ERC20Interface{
         return _balances[account];
     }
 
+    function isTokenLock(address from , address to) public view returns(bool lock){
+        lock = false;
+
+        // 전체 토큰 잠김 검증
+        if(_tokenLock == true)
+        {
+            lock = true;
+        }
+
+        // 개인 토큰 잠김 검증
+        if(_personalTokenLock[from] == true || _personalTokenLock[to] == true){
+            lock = true;
+        }
+    }
+
+    function removeTokenLock() onlyOwner public {
+        require(_tokenLock == true);
+        _tokenLock = false;
+    }
+
+    function removePersonalTokenLock(address _who) onlyOwner public{
+        require(_personalTokenLock[_who] == true);
+        _personalTokenLock[_who] = false;
+    }
+
     /* 이거는 ERC20Interface 에서 상속한것이다.
     /* 토큰 직거래 함수, 받는사람 주소와 토큰양을 지정하면, 주소유무와 잔액검증 후에, 받는사람에게 amount 만큼 토큰을 더해줍니다.*/    
     function transfer(address recipient, uint256 amount) public virtual override returns (bool){
@@ -86,13 +172,15 @@ contract SimpleToken is ERC20Interface{
         require(sender != address(0), "ERC20: transfer from the zero address"); // 보내는 사람의 주소가 없다? address 의 null 검사?
         require(recipient != address(0), "ERC20 : transfer to the zero address"); // 받는사람의 주소가 없다
 
+        require(isTokenLock(sender,recipient)==false,"TokenLock : invalid token transfer"); // token 잠김 여부 확인, (전체, sender, recipient)
+
         uint256 senderBalance = _balances[sender]; // 요청한 사람의 잔액
         
         require(senderBalance >= amount, "ERC20 : transfer amount exeed balance"); // 보낸사람의 토큰 잔액이 보내려는값보다 커야한다, 아니면 에러.
 
         // 송금 처리
-        _balances[sender] = senderBalance-amount;
-        _balances[recipient] += amount;
+        _balances[sender] = senderBalance.sub(amount);
+        _balances[recipient] = _balances[recipient].add(amount);
     }
 
     // 토큰 양도금 설정 및 승인. spender 가 당신의 계정으로부터 amount 한도 하에서 여러번 출금하는것을 허용하는 함수
