@@ -100,9 +100,9 @@ contract SimpleToken is ERC20Interface, OwnerHelper{
     string public _symbol;          // 토큰 단위
     uint8 public _decimals;
     
-    // 토큰 락 관련
-    bool public _tokenLock;                                 // 토큰의 전체 락에 대한 처리
-    mapping (address => bool) public _personalTokenLock;    // 토큰의 개인 락에 대한 처리
+    // 토큰 잠금 제어 관련 변수
+    bool public _tokenLock;                                 // 토큰의 전체 잠김 여부
+    mapping (address => bool) public _personalTokenLock;    // 토큰의 개인 잠김 여부
 
     constructor (string memory getName, string memory getSymbol){
         _name = getName;    // 토큰 이름
@@ -133,6 +133,25 @@ contract SimpleToken is ERC20Interface, OwnerHelper{
         return _balances[account];
     }
 
+    /* 전체 토큰 잠김 제어 */
+    function setTokenLock(bool lock) onlyOwner public returns(bool result){
+        require(_tokenLock != lock,"TokenLock : It is already set to your want"); // 바꾸려는 값이 달라야 한다.
+        _tokenLock = lock;
+
+        result = _tokenLock;
+    }
+
+    /* 개인토큰 잠김 제어 */
+    function setPersonalTokenLock(address _who, bool lock) public onlyOwner returns(bool result){
+        
+        require(_who != address(0), "ERC20 : invalid address");
+        require(_personalTokenLock[_who] != lock,"TokenLock : It is already set to your want");
+
+        _personalTokenLock[_who] = lock;
+        result = _personalTokenLock[_who];
+    }
+
+    /* 전송시 토큰 잠김 체크 */
     function isTokenLock(address from , address to) public view returns(bool lock){
         lock = false;
 
@@ -146,16 +165,6 @@ contract SimpleToken is ERC20Interface, OwnerHelper{
         if(_personalTokenLock[from] == true || _personalTokenLock[to] == true){
             lock = true;
         }
-    }
-
-    function removeTokenLock() onlyOwner public {
-        require(_tokenLock == true);
-        _tokenLock = false;
-    }
-
-    function removePersonalTokenLock(address _who) onlyOwner public{
-        require(_personalTokenLock[_who] == true);
-        _personalTokenLock[_who] = false;
     }
 
     /* 이거는 ERC20Interface 에서 상속한것이다.
@@ -172,7 +181,7 @@ contract SimpleToken is ERC20Interface, OwnerHelper{
         require(sender != address(0), "ERC20: transfer from the zero address"); // 보내는 사람의 주소가 없다? address 의 null 검사?
         require(recipient != address(0), "ERC20 : transfer to the zero address"); // 받는사람의 주소가 없다
 
-        require(isTokenLock(sender,recipient)==false,"TokenLock : invalid token transfer"); // token 잠김 여부 확인, (전체, sender, recipient)
+        require(isTokenLock(sender,recipient)==false,"TokenLock : Token transfer is locked"); // token 잠김 여부 확인, (전체, sender, recipient)
 
         uint256 senderBalance = _balances[sender]; // 요청한 사람의 잔액
         
