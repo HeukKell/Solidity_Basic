@@ -3,3 +3,5 @@ Contract/Truffle_Basic/build/
 Contract/OpenZeppelinSample/build/
 Contract/ERC-20_Basic/artifacts/
 Contract/OpenZeppelinSample/contracts/artifacts/
+Contract/ERC-721_Basic/node_modules/
+Contract/ERC-721_Basic/package-lock.json
