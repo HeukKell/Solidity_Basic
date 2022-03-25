@@ -1,0 +1,14 @@
+{
+  "name": "erc-721_basic",
+  "version": "1.0.0",
+  "description": "",
+  "main": "ERC721_Basic.sol",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.5.0"
+  }
+}
